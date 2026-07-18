@@ -580,7 +580,7 @@ func (vm *VM) Run() error {
 			if err := vm.execMinusOperation(); err != nil {
 				return vm.runtimeErrorAt(ip, op, err)
 			}
-		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
+		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv, code.OpMod:
 			if err := vm.execBinaryOperation(op); err != nil {
 				return vm.runtimeErrorAt(ip, op, err)
 			}
@@ -624,7 +624,7 @@ func (vm *VM) Run() error {
 			if err := vm.push(hash); err != nil {
 				return vm.runtimeErrorAt(ip, op, err)
 			}
-		case code.OpEqual, code.OpUnEqual, code.OpGreater:
+		case code.OpEqual, code.OpUnEqual, code.OpGreater, code.OpGreaterEqual:
 			if err := vm.execComparison(op); err != nil {
 				return vm.runtimeErrorAt(ip, op, err)
 			}
@@ -735,6 +735,17 @@ func (vm *VM) Run() error {
 			left := vm.pop()
 			if err := vm.execIndexOperation(left, index); err != nil {
 				return err
+			}
+		case code.OpSetIndex:
+			value := vm.decryptForUse(vm.pop())
+			index := vm.decryptForUse(vm.pop())
+			container := vm.decryptForUse(vm.pop())
+			mutated, err := vm.execSetIndex(container, index, value)
+			if err != nil {
+				return vm.runtimeErrorAt(ip, op, err)
+			}
+			if err := vm.push(mutated); err != nil {
+				return vm.runtimeErrorAt(ip, op, err)
 			}
 		case code.OpClosure:
 			if ip+3 >= len(ins) {
@@ -1232,7 +1243,15 @@ func (vm *VM) execBinaryIntegerOperation(op code.Opcode, left, right object.Obje
 	case code.OpMul:
 		result = lval * rval
 	case code.OpDiv:
+		if rval == 0 {
+			return fmt.Errorf("integer division by zero")
+		}
 		result = lval / rval
+	case code.OpMod:
+		if rval == 0 {
+			return fmt.Errorf("integer modulo by zero")
+		}
+		result = lval % rval
 	default:
 		return fmt.Errorf("Unknown integer operator: %d", op)
 	}
@@ -1279,6 +1298,35 @@ func (vm *VM) execBinaryStringOperation(op code.Opcode, left, right object.Objec
 	}
 
 	return vm.push(&object.String{Value: lval + rval})
+}
+
+// execSetIndex mutates a container in place for `container[index] = value` and
+// returns the (same) container so the caller can persist it to its variable slot.
+func (vm *VM) execSetIndex(container, index, value object.Object) (object.Object, error) {
+	switch c := container.(type) {
+	case *object.Array:
+		idx, ok := index.(*object.Integer)
+		if !ok {
+			return nil, fmt.Errorf("array index must be INTEGER, got %s", index.Type())
+		}
+		if idx.Value < 0 || idx.Value >= int64(len(c.Elements)) {
+			return nil, fmt.Errorf("array index out of bounds: %d (len %d)", idx.Value, len(c.Elements))
+		}
+		c.Elements[idx.Value] = value
+		return c, nil
+	case *object.Hash:
+		hashKey, ok := index.(object.Hashable)
+		if !ok {
+			return nil, fmt.Errorf("unusable as a hashkey: %s", index.Type())
+		}
+		if c.Pairs == nil {
+			c.Pairs = make(map[object.HashKey]object.HashPair)
+		}
+		c.Pairs[hashKey.HashKey()] = object.HashPair{Key: index, Value: value}
+		return c, nil
+	default:
+		return nil, fmt.Errorf("index assignment not supported on %s", container.Type())
+	}
 }
 
 func (vm *VM) execIndexOperation(left, index object.Object) error {
@@ -1418,6 +1466,8 @@ func (vm *VM) execFloatComparison(op code.Opcode, left, right object.Object) err
 		return vm.push(nativeBoolToBooleanObject(rightValue != leftValue))
 	case code.OpGreater:
 		return vm.push(nativeBoolToBooleanObject(leftValue > rightValue))
+	case code.OpGreaterEqual:
+		return vm.push(nativeBoolToBooleanObject(leftValue >= rightValue))
 	default:
 		return fmt.Errorf("unknown operator: %d", op)
 	}
@@ -1432,6 +1482,8 @@ func (vm *VM) execIntegerComparison(op code.Opcode, left, right object.Object) e
 		return vm.push(nativeBoolToBooleanObject(rightValue != leftValue))
 	case code.OpGreater:
 		return vm.push(nativeBoolToBooleanObject(leftValue > rightValue))
+	case code.OpGreaterEqual:
+		return vm.push(nativeBoolToBooleanObject(leftValue >= rightValue))
 	default:
 		return fmt.Errorf("unknown operator: %d", op)
 	}
@@ -1625,11 +1677,20 @@ func nativeBoolToBooleanObject(native bool) *object.Boolean {
 }
 
 func isTruthy(obj object.Object) bool {
-	switch obj := obj.(type) {
+	// Conventional truthiness (dev-sec-platform-upgrades): false, null, empty
+	// string, 0 and 0.0 are falsy; everything else is truthy. This matches the
+	// webrepl path and removes the "" -is-truthy footgun.
+	switch o := obj.(type) {
 	case *object.Boolean:
-		return obj.Value
+		return o.Value
 	case *object.Null:
 		return false
+	case *object.String:
+		return len(o.Value) != 0
+	case *object.Integer:
+		return o.Value != 0
+	case *object.Float:
+		return o.Value != 0
 	default:
 		return true
 	}
