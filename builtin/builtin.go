@@ -282,11 +282,14 @@ var Builtins = []BuiltinDefinition{
 	{BuiltinNameNetServe, &BuiltIn{NetServe}},
 	{BuiltinNameSleepMs, &BuiltIn{SleepMs}},
 	{BuiltinNameTimeMs, &BuiltIn{TimeMs}},
+<<<<<<< HEAD
 	{BuiltinNameWsAcceptKey, &BuiltIn{WSAcceptKey}},
 	{BuiltinNameWsReadFrame, &BuiltIn{WSReadFrame}},
 	{BuiltinNameWsWriteFrame, &BuiltIn{WSWriteFrame}},
 	{BuiltinNameHttpConnReadRequestHead, &BuiltIn{HTTPConnReadRequestHead}},
 	{BuiltinNameHttpConnReadResponseHead, &BuiltIn{HTTPConnReadResponseHead}},
+=======
+>>>>>>> 20259bf55a38642d8f27269ef124feeae5d965cc
 }
 
 var builtinsByName = buildBuiltinLookup()
