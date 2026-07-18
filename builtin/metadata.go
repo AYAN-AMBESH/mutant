@@ -591,12 +591,9 @@ var builtinDocs = map[string]builtinDoc{
 	BuiltinNameNetServe:       {signature: "net_serve(listener, handler_path, arg?)", summary: "Accept loop that dispatches each connection to a fresh VM running handler_path; handler reads its connection via the predefined global serve_conn and shared arg via serve_arg. Concurrent."},
 	BuiltinNameSleepMs:        {signature: "sleep_ms(ms)", summary: "Blocks the current handler for ms milliseconds."},
 	BuiltinNameTimeMs:         {signature: "time_ms()", summary: "Returns the current Unix time in milliseconds."},
-<<<<<<< HEAD
 	BuiltinNameWsAcceptKey:    {signature: "ws_accept_key(client_key)", summary: "Computes the Sec-WebSocket-Accept value for an RFC 6455 101 handshake response."},
 	BuiltinNameWsReadFrame:    {signature: "ws_read_frame(handle, timeoutMs)", summary: "Reads one WebSocket frame (unmasked); returns {fin, opcode, payload, masked, length, is_control}."},
 	BuiltinNameWsWriteFrame:   {signature: "ws_write_frame(handle, opcode, payload, mask)", summary: "Writes one WebSocket frame; mask=true for client->server, false for server->client."},
-=======
->>>>>>> 20259bf55a38642d8f27269ef124feeae5d965cc
 	BuiltinNameNetTlsUpgradeServer: {
 		signature: "net_tls_upgrade_server(handle, certPem, keyPem, options?)",
 		summary:   "Upgrades an accepted connection to server-side TLS (completes a CONNECT intercept).",
@@ -634,11 +631,11 @@ var builtinDocs = map[string]builtinDoc{
 			{name: "options?", doc: "Hash: common_name, dns_names, ip_addresses, days."},
 		},
 	},
-	BuiltinNameHttpParseRequest:     {signature: "http_parse_request(raw)", summary: "Parses a raw HTTP request into {method, url, path, host, proto, query, headers, body}."},
-	BuiltinNameHttpParseResponse:    {signature: "http_parse_response(raw)", summary: "Parses a raw HTTP response into {status, status_text, proto, headers, body}."},
-	BuiltinNameHttpBuildRequest:     {signature: "http_build_request(request)", summary: "Serialises a request hash into HTTP wire bytes."},
-	BuiltinNameHttpBuildResponse:    {signature: "http_build_response(response)", summary: "Serialises a response hash into HTTP wire bytes (adds Content-Length)."},
-	BuiltinNameHttpConnReadRequest:  {signature: "http_conn_read_request(handle, timeoutMs)", summary: "Reads exactly one HTTP request from a connection handle."},
+	BuiltinNameHttpParseRequest:         {signature: "http_parse_request(raw)", summary: "Parses a raw HTTP request into {method, url, path, host, proto, query, headers, body}."},
+	BuiltinNameHttpParseResponse:        {signature: "http_parse_response(raw)", summary: "Parses a raw HTTP response into {status, status_text, proto, headers, body}."},
+	BuiltinNameHttpBuildRequest:         {signature: "http_build_request(request)", summary: "Serialises a request hash into HTTP wire bytes."},
+	BuiltinNameHttpBuildResponse:        {signature: "http_build_response(response)", summary: "Serialises a response hash into HTTP wire bytes (adds Content-Length)."},
+	BuiltinNameHttpConnReadRequest:      {signature: "http_conn_read_request(handle, timeoutMs)", summary: "Reads exactly one HTTP request from a connection handle."},
 	BuiltinNameHttpConnReadResponse:     {signature: "http_conn_read_response(handle, timeoutMs)", summary: "Reads exactly one HTTP response from a connection handle."},
 	BuiltinNameHttpConnReadRequestHead:  {signature: "http_conn_read_request_head(handle, timeoutMs)", summary: "Reads a request's line+headers without the body (stream it via net_conn_read); adds content_length, chunked."},
 	BuiltinNameHttpConnReadResponseHead: {signature: "http_conn_read_response_head(handle, timeoutMs)", summary: "Reads a response's status line+headers without the body (stream it via net_conn_read); adds content_length, chunked."},

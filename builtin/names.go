@@ -242,7 +242,6 @@ const (
 	// time utilities (dev-sec-platform-upgrades)
 	BuiltinNameSleepMs = "sleep_ms"
 	BuiltinNameTimeMs  = "time_ms"
-<<<<<<< HEAD
 	// websocket frame primitives (dev-sec-platform-upgrades)
 	BuiltinNameWsAcceptKey  = "ws_accept_key"
 	BuiltinNameWsReadFrame  = "ws_read_frame"
@@ -250,6 +249,4 @@ const (
 	// streaming HTTP head reads (dev-sec-platform-upgrades)
 	BuiltinNameHttpConnReadRequestHead  = "http_conn_read_request_head"
 	BuiltinNameHttpConnReadResponseHead = "http_conn_read_response_head"
-=======
->>>>>>> 20259bf55a38642d8f27269ef124feeae5d965cc
 )
