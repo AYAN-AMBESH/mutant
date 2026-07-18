@@ -636,7 +636,9 @@ var builtinDocs = map[string]builtinDoc{
 	BuiltinNameHttpBuildRequest:     {signature: "http_build_request(request)", summary: "Serialises a request hash into HTTP wire bytes."},
 	BuiltinNameHttpBuildResponse:    {signature: "http_build_response(response)", summary: "Serialises a response hash into HTTP wire bytes (adds Content-Length)."},
 	BuiltinNameHttpConnReadRequest:  {signature: "http_conn_read_request(handle, timeoutMs)", summary: "Reads exactly one HTTP request from a connection handle."},
-	BuiltinNameHttpConnReadResponse: {signature: "http_conn_read_response(handle, timeoutMs)", summary: "Reads exactly one HTTP response from a connection handle."},
+	BuiltinNameHttpConnReadResponse:     {signature: "http_conn_read_response(handle, timeoutMs)", summary: "Reads exactly one HTTP response from a connection handle."},
+	BuiltinNameHttpConnReadRequestHead:  {signature: "http_conn_read_request_head(handle, timeoutMs)", summary: "Reads a request's line+headers without the body (stream it via net_conn_read); adds content_length, chunked."},
+	BuiltinNameHttpConnReadResponseHead: {signature: "http_conn_read_response_head(handle, timeoutMs)", summary: "Reads a response's status line+headers without the body (stream it via net_conn_read); adds content_length, chunked."},
 }
 
 var builtinFamilyDocs = []builtinFamilyDoc{

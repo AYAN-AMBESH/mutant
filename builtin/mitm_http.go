@@ -89,6 +89,81 @@ func HTTPConnReadResponse(args ...object.Object) object.Object {
 	return resultAndError(responseToHash("http_conn_read_response", resp))
 }
 
+// HTTPConnReadRequestHead reads a request's line + headers WITHOUT consuming the
+// body, leaving it on the connection so it can be streamed in chunks with
+// net_conn_read (avoiding the 32 MiB whole-body cap). For a Content-Length body,
+// exactly content_length raw bytes follow; a chunked body arrives chunk-encoded.
+// http_conn_read_request_head(handle, timeout_ms) -> HASH {method,url,path,host,
+//
+//	proto,query,headers,content_length,chunked}
+func HTTPConnReadRequestHead(args ...object.Object) object.Object {
+	mc, timeoutMs, errObj := connAndTimeout("http_conn_read_request_head", args)
+	if errObj != nil {
+		return resultAndError(nil, errObj)
+	}
+	applyReadDeadline(mc, timeoutMs)
+	req, err := http.ReadRequest(mc.buffered())
+	if err != nil {
+		return resultAndError(nil, newError("http_conn_read_request_head: %s", err.Error()))
+	}
+
+	host := req.Host
+	query := ""
+	path := req.URL.Path
+	if req.URL != nil {
+		query = req.URL.RawQuery
+		if host == "" {
+			host = req.URL.Host
+		}
+	}
+	return resultAndError(makeHashObject(map[string]object.Object{
+		"method":         stringObj(req.Method),
+		"url":            stringObj(req.URL.String()),
+		"path":           stringObj(path),
+		"host":           stringObj(host),
+		"proto":          stringObj(req.Proto),
+		"query":          stringObj(query),
+		"headers":        headerToHash(req.Header),
+		"content_length": intObj(req.ContentLength),
+		"chunked":        boolObj(isChunked(req.TransferEncoding)),
+	}), nil)
+}
+
+// HTTPConnReadResponseHead reads a response's status line + headers WITHOUT
+// consuming the body, leaving it on the connection for streaming via
+// net_conn_read. See HTTPConnReadRequestHead.
+// http_conn_read_response_head(handle, timeout_ms) -> HASH {status,status_text,
+//
+//	proto,headers,content_length,chunked}
+func HTTPConnReadResponseHead(args ...object.Object) object.Object {
+	mc, timeoutMs, errObj := connAndTimeout("http_conn_read_response_head", args)
+	if errObj != nil {
+		return resultAndError(nil, errObj)
+	}
+	applyReadDeadline(mc, timeoutMs)
+	resp, err := http.ReadResponse(mc.buffered(), nil)
+	if err != nil {
+		return resultAndError(nil, newError("http_conn_read_response_head: %s", err.Error()))
+	}
+	return resultAndError(makeHashObject(map[string]object.Object{
+		"status":         intObj(int64(resp.StatusCode)),
+		"status_text":    stringObj(http.StatusText(resp.StatusCode)),
+		"proto":          stringObj(resp.Proto),
+		"headers":        headerToHash(resp.Header),
+		"content_length": intObj(resp.ContentLength),
+		"chunked":        boolObj(isChunked(resp.TransferEncoding)),
+	}), nil)
+}
+
+func isChunked(te []string) bool {
+	for _, v := range te {
+		if v == "chunked" {
+			return true
+		}
+	}
+	return false
+}
+
 // HTTPBuildRequest serialises a request hash back into wire bytes.
 // http_build_request(request HASH) -> STRING
 // Fields: method (default GET), url or path (default "/"), host, proto

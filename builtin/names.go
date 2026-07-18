@@ -246,4 +246,7 @@ const (
 	BuiltinNameWsAcceptKey  = "ws_accept_key"
 	BuiltinNameWsReadFrame  = "ws_read_frame"
 	BuiltinNameWsWriteFrame = "ws_write_frame"
+	// streaming HTTP head reads (dev-sec-platform-upgrades)
+	BuiltinNameHttpConnReadRequestHead  = "http_conn_read_request_head"
+	BuiltinNameHttpConnReadResponseHead = "http_conn_read_response_head"
 )

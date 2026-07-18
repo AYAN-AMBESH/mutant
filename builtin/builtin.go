@@ -285,6 +285,8 @@ var Builtins = []BuiltinDefinition{
 	{BuiltinNameWsAcceptKey, &BuiltIn{WSAcceptKey}},
 	{BuiltinNameWsReadFrame, &BuiltIn{WSReadFrame}},
 	{BuiltinNameWsWriteFrame, &BuiltIn{WSWriteFrame}},
+	{BuiltinNameHttpConnReadRequestHead, &BuiltIn{HTTPConnReadRequestHead}},
+	{BuiltinNameHttpConnReadResponseHead, &BuiltIn{HTTPConnReadResponseHead}},
 }
 
 var builtinsByName = buildBuiltinLookup()
