@@ -588,6 +588,9 @@ var builtinDocs = map[string]builtinDoc{
 	},
 	BuiltinNameNetAccept:      {signature: "net_accept(listener, timeoutMs)", summary: "Accepts one connection; returns {ok, handle, remote_addr, timeout, error}."},
 	BuiltinNameNetListenClose: {signature: "net_listen_close(handle)", summary: "Closes a listener and releases its handle."},
+	BuiltinNameNetServe:       {signature: "net_serve(listener, handler_path, arg?)", summary: "Accept loop that dispatches each connection to a fresh VM running handler_path; handler reads its connection via the predefined global serve_conn and shared arg via serve_arg. Concurrent."},
+	BuiltinNameSleepMs:        {signature: "sleep_ms(ms)", summary: "Blocks the current handler for ms milliseconds."},
+	BuiltinNameTimeMs:         {signature: "time_ms()", summary: "Returns the current Unix time in milliseconds."},
 	BuiltinNameNetTlsUpgradeServer: {
 		signature: "net_tls_upgrade_server(handle, certPem, keyPem, options?)",
 		summary:   "Upgrades an accepted connection to server-side TLS (completes a CONNECT intercept).",
