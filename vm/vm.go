@@ -39,6 +39,10 @@ type VM struct {
 	memoryMode      string
 
 	enforceSecurityCheckOpcodes bool
+
+	// xorStream caches the opcode-decryption key/nonce (seed=inslen, password are
+	// constant per run) so per-opcode fetch avoids re-deriving them each time.
+	xorStream *security.XORStream
 }
 
 var (
@@ -519,6 +523,12 @@ func (vm *VM) Run() error {
 	var op code.Opcode
 	vm.ensureFrameBoundaries()
 
+	// Cache the opcode-decryption key/nonce once; seed (inslen) and password are
+	// constant for the whole run, so re-deriving per opcode byte was pure waste.
+	if vm.xorStream == nil {
+		vm.xorStream = security.NewXORStream(int64(vm.inslen), vm.password)
+	}
+
 	if err := vm.validateSecurityCheckOpcodes("before-execution"); err != nil {
 		return err
 	}
@@ -534,7 +544,7 @@ func (vm *VM) Run() error {
 		ip = vm.currentFrame().ip
 		ins = vm.currentFrame().Instructions()
 
-		opcodeByte, err := security.SecureXOROneAt(ins[ip], int64(vm.inslen), vm.password, int64(ip))
+		opcodeByte, err := vm.xorStream.XOROneAt(ins[ip], int64(ip))
 		if err != nil {
 			return vm.runtimeErrorAt(ip, op, err)
 		}
