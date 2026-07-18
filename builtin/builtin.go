@@ -278,6 +278,10 @@ var Builtins = []BuiltinDefinition{
 	{BuiltinNameHttpBuildResponse, &BuiltIn{HTTPBuildResponse}},
 	{BuiltinNameHttpConnReadRequest, &BuiltIn{HTTPConnReadRequest}},
 	{BuiltinNameHttpConnReadResponse, &BuiltIn{HTTPConnReadResponse}},
+	// concurrency (dev-sec-platform-upgrades) — append-only, keep last.
+	{BuiltinNameNetServe, &BuiltIn{NetServe}},
+	{BuiltinNameSleepMs, &BuiltIn{SleepMs}},
+	{BuiltinNameTimeMs, &BuiltIn{TimeMs}},
 }
 
 var builtinsByName = buildBuiltinLookup()
