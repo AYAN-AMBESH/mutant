@@ -242,4 +242,8 @@ const (
 	// time utilities (dev-sec-platform-upgrades)
 	BuiltinNameSleepMs = "sleep_ms"
 	BuiltinNameTimeMs  = "time_ms"
+	// websocket frame primitives (dev-sec-platform-upgrades)
+	BuiltinNameWsAcceptKey  = "ws_accept_key"
+	BuiltinNameWsReadFrame  = "ws_read_frame"
+	BuiltinNameWsWriteFrame = "ws_write_frame"
 )

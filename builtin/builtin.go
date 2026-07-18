@@ -282,6 +282,9 @@ var Builtins = []BuiltinDefinition{
 	{BuiltinNameNetServe, &BuiltIn{NetServe}},
 	{BuiltinNameSleepMs, &BuiltIn{SleepMs}},
 	{BuiltinNameTimeMs, &BuiltIn{TimeMs}},
+	{BuiltinNameWsAcceptKey, &BuiltIn{WSAcceptKey}},
+	{BuiltinNameWsReadFrame, &BuiltIn{WSReadFrame}},
+	{BuiltinNameWsWriteFrame, &BuiltIn{WSWriteFrame}},
 }
 
 var builtinsByName = buildBuiltinLookup()
