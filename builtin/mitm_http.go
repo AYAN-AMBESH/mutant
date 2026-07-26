@@ -274,11 +274,22 @@ func responseToHash(opName string, resp *http.Response) (object.Object, *object.
 
 	return makeHashObject(map[string]object.Object{
 		"status":      intObj(int64(resp.StatusCode)),
-		"status_text": stringObj(http.StatusText(resp.StatusCode)),
+		"status_text": stringObj(responseStatusText(resp)),
 		"proto":       stringObj(resp.Proto),
 		"headers":     headerToHash(resp.Header),
 		"body":        stringObj(string(bodyBytes)),
 	}), nil
+}
+
+// responseStatusText returns the reason phrase exactly as it arrived on the
+// wire (which may be custom or non-standard — worth preserving for an
+// inspection tool), falling back to the canonical text when the server sent an
+// empty phrase.
+func responseStatusText(resp *http.Response) string {
+	if phrase := strings.TrimSpace(strings.TrimPrefix(resp.Status, strconv.Itoa(resp.StatusCode))); phrase != "" {
+		return phrase
+	}
+	return http.StatusText(resp.StatusCode)
 }
 
 func headerToHash(header http.Header) *object.Hash {

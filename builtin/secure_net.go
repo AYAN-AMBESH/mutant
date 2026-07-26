@@ -29,6 +29,11 @@ import (
 	"mutant/object"
 )
 
+// maxConnReadBytes caps the buffer a single net_conn_read may allocate, so a
+// script (or an attacker-influenced length) cannot request a multi-gigabyte
+// allocation. It matches the HTTP body cap in mitm_http.go.
+const maxConnReadBytes = 32 << 20 // 32 MiB
+
 // managedConn wraps a live connection. A single bufio.Reader is created lazily
 // and reused so byte-level reads (net_conn_read) and HTTP-framed reads
 // (http_conn_read_request/response) draw from the same buffered stream and
@@ -213,8 +218,12 @@ func NetConnWrite(args ...object.Object) object.Object {
 
 // NetConnRead reads up to max_bytes from a connection.
 // net_conn_read(handle INTEGER, max_bytes INTEGER, timeout_ms INTEGER) -> HASH
-// Result: {data, bytes, eof, error}. A timeout is reported as eof=false with a
-// non-empty error string, letting proxy loops poll without aborting.
+// Result: {data, bytes, eof, error}. I/O problems are reported in the result's
+// `error` field rather than the builtin's err return, so proxy loops can poll
+// with a timeout without aborting; a timeout is eof=false with a non-empty
+// error string. The err return is reserved for argument/handle mistakes.
+// max_bytes is capped at maxConnReadBytes so a script cannot ask for an
+// arbitrarily large buffer.
 func NetConnRead(args ...object.Object) object.Object {
 	if len(args) != 3 {
 		return resultAndError(nil, newError("wrong number of arguments. got=%d, want=3", len(args)))
@@ -231,8 +240,8 @@ func NetConnRead(args ...object.Object) object.Object {
 	if !ok {
 		return resultAndError(nil, newError("argument 3 to `net_conn_read` must be INTEGER, got %s", args[2].Type()))
 	}
-	if maxBytes.Value <= 0 {
-		return resultAndError(nil, newError("argument 2 to `net_conn_read` must be > 0, got %d", maxBytes.Value))
+	if maxBytes.Value <= 0 || maxBytes.Value > maxConnReadBytes {
+		return resultAndError(nil, newError("argument 2 to `net_conn_read` must be between 1 and %d, got %d", maxConnReadBytes, maxBytes.Value))
 	}
 	mc, ok := lookupConn(handle.Value)
 	if !ok {
@@ -245,7 +254,7 @@ func NetConnRead(args ...object.Object) object.Object {
 		_ = mc.conn.SetReadDeadline(time.Time{})
 	}
 
-	buf := make([]byte, maxBytes.Value)
+	buf := make([]byte, int(maxBytes.Value))
 	n, err := mc.buffered().Read(buf)
 
 	eof := err == io.EOF

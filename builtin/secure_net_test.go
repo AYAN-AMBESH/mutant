@@ -3,6 +3,7 @@ package builtin
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"mutant/object"
 )
@@ -322,6 +323,54 @@ func TestTLSUpgradeServerCONNECTFlow(t *testing.T) {
 	}
 	NetConnClose(intObj(clientHandle))
 	<-done
+}
+
+// TestNetConnReadRejectsOutOfRangeMaxBytes confirms the read buffer size is
+// bounded, so a script cannot ask for a huge (or negative) allocation.
+func TestNetConnReadRejectsOutOfRangeMaxBytes(t *testing.T) {
+	for _, maxBytes := range []int64{0, -1, maxConnReadBytes + 1, 1 << 40} {
+		if _, errObj := unwrapPair(t, NetConnRead(intObj(1), intObj(maxBytes), intObj(0))); errObj == nil {
+			t.Fatalf("expected net_conn_read to reject max_bytes=%d", maxBytes)
+		}
+	}
+}
+
+// TestNetConnReadReportsTimeoutInResult documents the split error convention:
+// an I/O timeout is a successful call whose result carries the error string.
+func TestNetConnReadReportsTimeoutInResult(t *testing.T) {
+	lnResult, errObj := unwrapPair(t, NetListen(stringObj("127.0.0.1:0")))
+	if errObj != nil {
+		t.Fatalf("net_listen: %s", errObj.Message)
+	}
+	lnHandle := lnResult.(*object.Integer).Value
+	defer NetListenClose(intObj(lnHandle))
+	ml, _ := lookupListener(lnHandle)
+	addr := ml.ln.Addr().String()
+
+	go func() {
+		acc, _ := unwrapPair(t, NetAccept(intObj(lnHandle), intObj(2000)))
+		connHandle := hashInt(t, acc, "handle")
+		time.Sleep(300 * time.Millisecond) // stay silent past the client's deadline
+		NetConnClose(intObj(connHandle))
+	}()
+
+	connResult, errObj := unwrapPair(t, NetConnect(stringObj(addr), intObj(2000)))
+	if errObj != nil {
+		t.Fatalf("net_connect: %s", errObj.Message)
+	}
+	h := connResult.(*object.Integer).Value
+	defer NetConnClose(intObj(h))
+
+	r, errObj := unwrapPair(t, NetConnRead(intObj(h), intObj(64), intObj(50)))
+	if errObj != nil {
+		t.Fatalf("net_conn_read should not hard-error on timeout: %s", errObj.Message)
+	}
+	if got := hashStr(t, r, "error"); got == "" {
+		t.Fatal("expected the read timeout to be reported in the result's error field")
+	}
+	if hashBool(t, r, "eof") {
+		t.Fatal("a timeout is not eof")
+	}
 }
 
 // TestNetAcceptTimeout confirms a poll-style accept returns cleanly on timeout.

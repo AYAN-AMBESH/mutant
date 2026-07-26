@@ -570,8 +570,8 @@ var builtinDocs = map[string]builtinDoc{
 	},
 	BuiltinNameNetConnRead: {
 		signature: "net_conn_read(handle, maxBytes, timeoutMs)",
-		summary:   "Reads up to maxBytes from a connection; returns {data, bytes, eof, error}.",
-		params:    []builtinParamDoc{{name: "handle", doc: "Connection handle."}, {name: "maxBytes", doc: "Maximum bytes to read."}, {name: "timeoutMs", doc: "Read timeout in ms (0 = block)."}},
+		summary:   "Reads up to maxBytes from a connection; returns {data, bytes, eof, error} with I/O failures in the error field.",
+		params:    []builtinParamDoc{{name: "handle", doc: "Connection handle."}, {name: "maxBytes", doc: "Maximum bytes to read (1..32 MiB)."}, {name: "timeoutMs", doc: "Read timeout in ms (0 = block)."}},
 	},
 	BuiltinNameNetConnClose: {signature: "net_conn_close(handle)", summary: "Closes a connection and releases its handle."},
 	BuiltinNameNetConnInfo:  {signature: "net_conn_info(handle)", summary: "Returns addressing and negotiated TLS session details for a connection."},
@@ -603,7 +603,7 @@ var builtinDocs = map[string]builtinDoc{
 		summary:   "Upgrades an open connection to client-side TLS (STARTTLS / upstream leg).",
 		params: []builtinParamDoc{
 			{name: "handle", doc: "Connection handle to upgrade."},
-			{name: "options?", doc: "Hash: server_name, insecure, alpn, ca_cert, handshake_timeout_ms."},
+			{name: "options?", doc: "Hash: server_name, insecure, alpn, min_version, ca_cert, client_cert, client_key, handshake_timeout_ms."},
 		},
 	},
 	BuiltinNameTlsGenerateCa: {

@@ -63,6 +63,33 @@ func TestHTTPParseResponse(t *testing.T) {
 	}
 }
 
+// TestHTTPParseResponseKeepsWireStatusText checks that a non-standard reason
+// phrase survives parsing instead of being replaced by the canonical text —
+// an interception tool has to report what the server actually sent.
+func TestHTTPParseResponseKeepsWireStatusText(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"custom phrase", "HTTP/1.1 200 Totally Fine\r\nContent-Length: 0\r\n\r\n", "Totally Fine"},
+		{"unknown code", "HTTP/1.1 599 Weird Upstream\r\nContent-Length: 0\r\n\r\n", "Weird Upstream"},
+		{"empty phrase falls back", "HTTP/1.1 404 \r\nContent-Length: 0\r\n\r\n", "Not Found"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, errObj := unwrapPair(t, HTTPParseResponse(stringObj(tc.raw)))
+			if errObj != nil {
+				t.Fatalf("http_parse_response: %s", errObj.Message)
+			}
+			if got := hashStr(t, result, "status_text"); got != tc.want {
+				t.Fatalf("status_text=%q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestHTTPBuildRequestRoundTrip(t *testing.T) {
 	built, errObj := unwrapPair(t, HTTPBuildRequest(makeHashObject(map[string]object.Object{
 		"method": stringObj("GET"),

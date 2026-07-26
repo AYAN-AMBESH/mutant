@@ -36,12 +36,22 @@ let serve = fn(bind_addr) {
         if (acc["ok"]) {
             let client = acc["handle"];
             putln("client connected: ", acc["remote_addr"]);
+            // net_conn_read reports I/O failures (including read timeouts) in
+            // the result hash's "error" field; the err return only fires for
+            // bad arguments or a stale handle. Check both.
             let msg, err = net_conn_read(client, 4096, 15000);
             if (err) {
-                putln("read error: ", err);
+                putln("read failed: ", err);
+            } else if (msg["error"] != "") {
+                putln("read error: ", msg["error"]);
+            } else if (msg["bytes"] == 0) {
+                putln("client sent nothing (eof: ", msg["eof"], ")");
             } else {
                 let reply = "echo: " + msg["data"];
-                net_conn_write(client, reply);
+                let sent, err = net_conn_write(client, reply);
+                if (err) {
+                    putln("write failed: ", err);
+                };
             };
             net_conn_close(client);
         };

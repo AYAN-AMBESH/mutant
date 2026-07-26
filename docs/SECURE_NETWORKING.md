@@ -17,6 +17,19 @@ The toolkit is split into three layers:
 All fallible builtins follow the language convention of returning
 `(result, err)`; destructure with `let value, err = ...`.
 
+Two builtins additionally report *recoverable* conditions inside the returned
+hash instead of through `err`, so that a polling loop is not forced to abort:
+
+- `net_conn_read` — I/O problems (including read timeouts) land in the result's
+  `error` field, with end-of-stream in `eof`. Its `err` return only fires for
+  bad arguments or an unknown handle, so always check **both**:
+  `if (err) { ... } else if (msg["error"] != "") { ... }`.
+- `net_accept` — an expired accept timeout is a successful call returning
+  `ok=false, timeout=true` with `err` null. Genuine accept failures set both
+  the hash's `error` field and `err`.
+
+Everything else reports failure through `err` alone.
+
 ---
 
 ## 1. Sockets and TLS sessions
@@ -29,7 +42,7 @@ them with `net_conn_close` / `net_listen_close` when done.
 | `net_connect` | `(address, timeoutMs)` | connection handle |
 | `net_tls_connect` | `(address, timeoutMs, options?)` | connection handle |
 | `net_conn_write` | `(handle, data)` | bytes written |
-| `net_conn_read` | `(handle, maxBytes, timeoutMs)` | `{data, bytes, eof, error}` |
+| `net_conn_read` | `(handle, maxBytes, timeoutMs)` | `{data, bytes, eof, error}` (`maxBytes` ≤ 32 MiB) |
 | `net_conn_info` | `(handle)` | addresses + negotiated TLS session |
 | `net_conn_close` | `(handle)` | bool |
 | `net_listen` | `(address)` | listener handle |
@@ -42,11 +55,16 @@ them with `net_conn_close` / `net_listen_close` when done.
 **Client TLS options** (`net_tls_connect`, `net_tls_upgrade_client`):
 `server_name`, `insecure` (skip verification), `alpn` (array), `min_version`
 (`"1.0"`..`"1.3"`), `ca_cert` (PEM roots to pin), `client_cert` + `client_key`
-(PEM, for mutual TLS), `handshake_timeout_ms`.
+(PEM, for mutual TLS).
 
 **Server TLS options** (`net_tls_listen`, `net_tls_upgrade_server`):
 `alpn`, `min_version`, `client_ca` (PEM; requires and verifies client certs for
-mutual TLS), `handshake_timeout_ms`.
+mutual TLS).
+
+`handshake_timeout_ms` (default 15000) applies to the two upgrade builtins only,
+which drive the handshake themselves. `net_tls_connect` bounds its handshake
+with its own `timeoutMs` dial timeout, and `net_tls_listen` handshakes lazily on
+first use of the accepted connection.
 
 `net_accept` with `timeoutMs <= 0` blocks; a positive timeout lets a loop poll
 without aborting (`ok=false, timeout=true` on expiry).

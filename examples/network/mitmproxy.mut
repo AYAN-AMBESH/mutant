@@ -44,7 +44,15 @@ let relay_https = fn(host_port, host, request) {
     };
 
     let wire, err = http_build_request(request);
-    net_conn_write(upstream, wire);
+    if (err) {
+        net_conn_close(upstream);
+        return {"status": 502, "body": "mutant-proxy: request rebuild failed", "headers": {}};
+    };
+    let sent, err = net_conn_write(upstream, wire);
+    if (err) {
+        net_conn_close(upstream);
+        return {"status": 502, "body": "mutant-proxy: upstream write failed", "headers": {}};
+    };
     let resp, err = http_conn_read_response(upstream, 15000);
     net_conn_close(upstream);
     if (err) {
@@ -92,6 +100,11 @@ let handle_connect = fn(client, ca, host_port) {
     putln("  [response ] ", resp["status"], " (", len(resp["body"]), " bytes)");
 
     let back, err = http_build_response(resp);
+    if (err) {
+        putln("  [!] response rebuild failed: ", err);
+        net_conn_close(client);
+        return false;
+    };
     net_conn_write(client, back);
     net_conn_close(client);
     return true;
@@ -110,7 +123,19 @@ let handle_plain = fn(client, request) {
         return false;
     };
     let wire, err = http_build_request(request);
-    net_conn_write(upstream, wire);
+    if (err) {
+        net_conn_close(upstream);
+        net_conn_write(client, "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n");
+        net_conn_close(client);
+        return false;
+    };
+    let sent, err = net_conn_write(upstream, wire);
+    if (err) {
+        net_conn_close(upstream);
+        net_conn_write(client, "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n");
+        net_conn_close(client);
+        return false;
+    };
     let resp, err = http_conn_read_response(upstream, 15000);
     net_conn_close(upstream);
     if (err) {
@@ -118,7 +143,11 @@ let handle_plain = fn(client, request) {
     } else {
         putln("  [response ] ", resp["status"]);
         let back, err = http_build_response(resp);
-        net_conn_write(client, back);
+        if (err) {
+            net_conn_write(client, "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n");
+        } else {
+            net_conn_write(client, back);
+        };
     };
     net_conn_close(client);
     return true;
