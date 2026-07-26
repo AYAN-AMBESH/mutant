@@ -237,4 +237,19 @@ const (
 	BuiltinNameHttpBuildResponse    = "http_build_response"
 	BuiltinNameHttpConnReadRequest  = "http_conn_read_request"
 	BuiltinNameHttpConnReadResponse = "http_conn_read_response"
+	// concurrency: per-connection handler dispatch (dev-sec-platform-upgrades)
+	BuiltinNameNetServe  = "net_serve"
+	BuiltinNameNetSpawn  = "net_spawn"
+	BuiltinNameServeConn = "serve_conn"
+	BuiltinNameServeArg  = "serve_arg"
+	// time utilities (dev-sec-platform-upgrades)
+	BuiltinNameSleepMs = "sleep_ms"
+	BuiltinNameTimeMs  = "time_ms"
+	// websocket frame primitives (dev-sec-platform-upgrades)
+	BuiltinNameWsAcceptKey  = "ws_accept_key"
+	BuiltinNameWsReadFrame  = "ws_read_frame"
+	BuiltinNameWsWriteFrame = "ws_write_frame"
+	// streaming HTTP head reads (dev-sec-platform-upgrades)
+	BuiltinNameHttpConnReadRequestHead  = "http_conn_read_request_head"
+	BuiltinNameHttpConnReadResponseHead = "http_conn_read_response_head"
 )

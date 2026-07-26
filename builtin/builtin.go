@@ -278,6 +278,18 @@ var Builtins = []BuiltinDefinition{
 	{BuiltinNameHttpBuildResponse, &BuiltIn{HTTPBuildResponse}},
 	{BuiltinNameHttpConnReadRequest, &BuiltIn{HTTPConnReadRequest}},
 	{BuiltinNameHttpConnReadResponse, &BuiltIn{HTTPConnReadResponse}},
+	// concurrency (dev-sec-platform-upgrades) — append-only, keep last.
+	{BuiltinNameNetServe, &BuiltIn{NetServe}},
+	{BuiltinNameNetSpawn, &BuiltIn{NetSpawn}},
+	{BuiltinNameServeConn, &BuiltIn{ServeConn}},
+	{BuiltinNameServeArg, &BuiltIn{ServeArg}},
+	{BuiltinNameSleepMs, &BuiltIn{SleepMs}},
+	{BuiltinNameTimeMs, &BuiltIn{TimeMs}},
+	{BuiltinNameWsAcceptKey, &BuiltIn{WSAcceptKey}},
+	{BuiltinNameWsReadFrame, &BuiltIn{WSReadFrame}},
+	{BuiltinNameWsWriteFrame, &BuiltIn{WSWriteFrame}},
+	{BuiltinNameHttpConnReadRequestHead, &BuiltIn{HTTPConnReadRequestHead}},
+	{BuiltinNameHttpConnReadResponseHead, &BuiltIn{HTTPConnReadResponseHead}},
 }
 
 var builtinsByName = buildBuiltinLookup()
