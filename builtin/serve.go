@@ -15,15 +15,19 @@ package builtin
 
 import "mutant/object"
 
-// NetServePrepareHook compiles+caches a handler .mut once and records the value
-// that will be passed to every invocation as `serve_arg`. Returns an error object
-// on parse/compile failure. Installed by the `serve` package.
-var NetServePrepareHook func(handlerPath string, arg object.Object) *object.Error
+// NetServePrepareHook compiles+caches a handler .mut once. Returns an error
+// object on parse/compile failure. Installed by the `serve` package.
+var NetServePrepareHook func(handlerPath string) *object.Error
 
-// NetServeRunHook runs the prepared handler for one accepted connection, with the
-// connection handle exposed to the handler as the predefined global `serve_conn`.
-// Installed by the `serve` package. Intended to be called on its own goroutine.
-var NetServeRunHook func(handlerPath string, connHandle int64)
+// NetServeRunHook runs the prepared handler for one accepted connection, exposing
+// the connection handle via serve_conn() and arg via serve_arg(). Installed by
+// the `serve` package. Intended to be called on its own goroutine.
+var NetServeRunHook func(handlerPath string, connHandle int64, arg object.Object)
+
+// NetSpawnHook compiles (if needed) and runs a handler on a NEW goroutine with no
+// connection (serve_conn() -> 0) and the given arg (serve_arg()). Installed by the
+// `serve` package. Used for auxiliary workers, e.g. a WebSocket reverse pump.
+var NetSpawnHook func(handlerPath string, arg object.Object) *object.Error
 
 // NetServe accepts connections on a listener and dispatches each to a fresh VM
 // running `handler_path`. It blocks (like an accept loop) and only returns on a
@@ -62,7 +66,7 @@ func NetServe(args ...object.Object) object.Object {
 		return resultAndError(nil, newError("net_serve: unknown listener handle %d", handleObj.Value))
 	}
 
-	if errObj := NetServePrepareHook(pathObj.Value, arg); errObj != nil {
+	if errObj := NetServePrepareHook(pathObj.Value); errObj != nil {
 		return resultAndError(nil, errObj)
 	}
 
@@ -72,6 +76,30 @@ func NetServe(args ...object.Object) object.Object {
 			return resultAndError(nil, newError("net_serve: accept failed: %s", err.Error()))
 		}
 		id := registerConn(conn, ml.isTLS)
-		go NetServeRunHook(pathObj.Value, id)
+		go NetServeRunHook(pathObj.Value, id, arg)
 	}
+}
+
+// NetSpawn runs handler_path on a new goroutine (no connection; serve_conn() -> 0)
+// with the given arg exposed via serve_arg(). Returns immediately.
+// net_spawn(handler_path STRING, arg?) -> (true, err)
+func NetSpawn(args ...object.Object) object.Object {
+	if len(args) != 1 && len(args) != 2 {
+		return resultAndError(nil, newError("wrong number of arguments. got=%d, want=1 or 2", len(args)))
+	}
+	pathObj, ok := args[0].(*object.String)
+	if !ok {
+		return resultAndError(nil, newError("argument 1 to `net_spawn` must be STRING, got %s", args[0].Type()))
+	}
+	var arg object.Object = &object.Null{}
+	if len(args) == 2 {
+		arg = args[1]
+	}
+	if NetSpawnHook == nil {
+		return resultAndError(nil, newError("net_spawn: concurrency runtime not installed"))
+	}
+	if errObj := NetSpawnHook(pathObj.Value, arg); errObj != nil {
+		return resultAndError(nil, errObj)
+	}
+	return resultAndError(boolObj(true), nil)
 }

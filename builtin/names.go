@@ -238,7 +238,10 @@ const (
 	BuiltinNameHttpConnReadRequest  = "http_conn_read_request"
 	BuiltinNameHttpConnReadResponse = "http_conn_read_response"
 	// concurrency: per-connection handler dispatch (dev-sec-platform-upgrades)
-	BuiltinNameNetServe = "net_serve"
+	BuiltinNameNetServe  = "net_serve"
+	BuiltinNameNetSpawn  = "net_spawn"
+	BuiltinNameServeConn = "serve_conn"
+	BuiltinNameServeArg  = "serve_arg"
 	// time utilities (dev-sec-platform-upgrades)
 	BuiltinNameSleepMs = "sleep_ms"
 	BuiltinNameTimeMs  = "time_ms"

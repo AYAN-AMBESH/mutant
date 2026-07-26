@@ -2,12 +2,13 @@
 // Per-connection handler for concurrent_server.mut, dispatched by net_serve.
 //
 // net_serve compiles this file once and runs it on a fresh VM for every accepted
-// connection. Two predefined globals are available:
-//   serve_conn  -- INTEGER connection handle (use with net_conn_* / http_conn_*)
-//   serve_arg   -- the shared value passed as net_serve's 3rd argument
+// connection. Two builtins expose the per-connection context:
+//   serve_conn() -- INTEGER connection handle (use with net_conn_* / http_conn_*)
+//   serve_arg()  -- the shared value passed as net_serve's 3rd argument
 // Handlers run concurrently, so keep per-connection state local (as below).
 
-let conn = serve_conn;
+let conn, cerr = serve_conn();
+let ctx, aerr = serve_arg();
 
 let req, rerr = http_conn_read_request(conn, 8000);
 let path = "/";
@@ -16,7 +17,7 @@ if (req) { path = req["path"]; };
 // Simulate real per-request work; concurrent handlers overlap this sleep.
 let s, serr = sleep_ms(1000);
 
-let body = "served " + path + " (ctx=" + serve_arg + ")";
+let body = "served " + path + " (ctx=" + ctx + ")";
 let resp = {"status": 200, "status_text": "OK", "body": body, "headers": {}};
 let wire, werr = http_build_response(resp);
 net_conn_write(conn, wire);

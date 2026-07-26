@@ -4,7 +4,7 @@
 // WebSocket opcodes: 0x1 text, 0x2 binary, 0x8 close, 0x9 ping, 0xA pong.
 // Server->client frames are written unmasked (mask=false), per RFC 6455.
 
-let conn = serve_conn;
+let conn, cerr = serve_conn();
 
 // 1) Read the HTTP Upgrade request and complete the 101 handshake.
 let req, rerr = http_conn_read_request(conn, 10000);

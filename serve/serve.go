@@ -8,10 +8,11 @@
 // EncryptByteCode, mirroring the REPL's in-process path), cached by path, then
 // executed on a fresh VM per connection. Each VM gets its own stack/frames and
 // its own globals slice, and shares the read-only, already-encrypted bytecode of
-// the cached handler. The connection handle and shared arg are injected as two
-// predefined globals (serve_conn, serve_arg). Per-connection cleanup uses
-// CleanupRuntimeSensitiveData(clearGlobals=true, clearConstants=false) so a
-// finishing worker never wipes the bytecode its siblings are still running.
+// the cached handler. The connection handle and shared arg are exposed to the
+// handler via the serve_conn()/serve_arg() builtins (a goroutine-keyed context
+// set around machine.Run()), so a handler file compiles/runs standalone too and a
+// program can serve itself. Per-connection VMs deliberately skip cleanup so a
+// finishing worker never wipes the shared bytecode its siblings are still running.
 package serve
 
 import (
@@ -34,10 +35,7 @@ import (
 const servePassword = "mutant-net-serve-inproc-v1"
 
 type prepared struct {
-	bc      *compiler.ByteCode
-	connIdx int
-	argIdx  int
-	arg     object.Object
+	bc *compiler.ByteCode
 }
 
 var (
@@ -51,11 +49,13 @@ func init() { Install() }
 func Install() {
 	builtin.NetServePrepareHook = prepare
 	builtin.NetServeRunHook = run
+	builtin.NetSpawnHook = spawn
 }
 
-// prepare compiles and caches a handler once. Subsequent calls for the same path
-// are no-ops (the first arg wins).
-func prepare(handlerPath string, arg object.Object) *object.Error {
+// prepare compiles and caches a handler's bytecode once. The arg is per-run (not
+// cached), so the same handler file can be run with different args (e.g. Splice
+// serving a connection vs. a WebSocket reverse pump).
+func prepare(handlerPath string) *object.Error {
 	cacheMu.Lock()
 	defer cacheMu.Unlock()
 	if _, ok := cache[handlerPath]; ok {
@@ -73,15 +73,12 @@ func prepare(handlerPath string, arg object.Object) *object.Error {
 		return errObj("net_serve: handler %q parse error: %s", handlerPath, perrs[0])
 	}
 
-	// Fresh symbol table with all builtins defined (BuiltinScope, no global slot),
-	// then two predefined GLOBAL symbols the handler reads. Defining these first
-	// pins them to global indexes 0 and 1; the handler's own lets take 2+.
+	// Fresh symbol table with all builtins defined (serve_conn/serve_arg are among
+	// them, so the handler resolves them like any builtin).
 	st := compiler.NewSymbolTable()
 	for i, b := range builtin.Builtins {
 		st.DefineBuiltin(i, b.Name)
 	}
-	connSym := st.Define("serve_conn")
-	argSym := st.Define("serve_arg")
 
 	comp := compiler.NewWithState(st, []object.Object{})
 	if cerr := comp.Compile(program); cerr != nil {
@@ -89,12 +86,13 @@ func prepare(handlerPath string, arg object.Object) *object.Error {
 	}
 
 	bc := mutil.EncryptByteCode(comp.ByteCode(), servePassword)
-	cache[handlerPath] = &prepared{bc: bc, connIdx: connSym.Index, argIdx: argSym.Index, arg: arg}
+	cache[handlerPath] = &prepared{bc: bc}
 	return nil
 }
 
-// run executes the prepared handler for one connection on a fresh VM.
-func run(handlerPath string, connHandle int64) {
+// run executes the prepared handler for one connection on a fresh VM, exposing
+// (connHandle, arg) via serve_conn()/serve_arg().
+func run(handlerPath string, connHandle int64, arg object.Object) {
 	cacheMu.Lock()
 	pr := cache[handlerPath]
 	cacheMu.Unlock()
@@ -103,12 +101,12 @@ func run(handlerPath string, connHandle int64) {
 	}
 
 	globals := make([]object.Object, global.GlobalSize)
-	globals[pr.connIdx] = &object.Integer{Value: connHandle}
-	if pr.arg != nil {
-		globals[pr.argIdx] = pr.arg
-	} else {
-		globals[pr.argIdx] = &object.Null{}
-	}
+
+	// Expose the connection + arg to the handler via serve_conn()/serve_arg() for
+	// the duration of this Run (goroutine-keyed; the handler VM runs on this
+	// goroutine synchronously).
+	builtin.SetServeContext(connHandle, arg)
+	defer builtin.ClearServeContext()
 
 	machine := vm.NewWithGlobalStoreAndPassword(pr.bc, globals, servePassword)
 	// NOTE: do NOT call CleanupRuntimeSensitiveData here. Its stack sweep calls
@@ -122,6 +120,16 @@ func run(handlerPath string, connHandle int64) {
 	if err := machine.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "[net_serve] handler error (conn %d): %s\n", connHandle, err.Error())
 	}
+}
+
+// spawn compiles (if needed) and runs a handler on a new goroutine with no
+// connection (serve_conn() -> 0) and the given arg (serve_arg()).
+func spawn(handlerPath string, arg object.Object) *object.Error {
+	if errObj := prepare(handlerPath); errObj != nil {
+		return errObj
+	}
+	go run(handlerPath, 0, arg)
+	return nil
 }
 
 func errObj(format string, a ...any) *object.Error {
